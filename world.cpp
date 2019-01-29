@@ -60,3 +60,16 @@ glm::vec3 World::Trace(const glm::vec3& pos, const glm::vec3& dir, int depth) {
 	// If the ray misses ...
 	return bgcolor;  // Background color
 }
+
+void World::setBBoxIndexes(BBox matriz3D[num][num][num], glm::vec3 divisiones)
+{
+	this->divisiones = divisiones;
+	for (int i = 0; i < num; i++) {
+		for (int j = 0; j < num; j++) {
+			for (int k = 0; k < num; k++) {
+				this->matriz3D[i][j][k] = matriz3D[i][j][k];
+			}
+		}
+	}
+	
+}

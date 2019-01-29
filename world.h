@@ -16,8 +16,8 @@
 
 #include "objectlist.h"
 #include "lightlist.h"
-
-
+#include "BBox.h"
+const int num = 19;
 /***************/
 /* World class */
 /***************/
@@ -34,13 +34,15 @@ public:
 	
 	/* Key function in recursive ray tracing */
 	glm::vec3 Trace(const glm::vec3& pos, const glm::vec3& dir, int depth);
-	
+	void setBBoxIndexes(BBox matriz3D[num][num][num], glm::vec3 divisiones);
 	int maxDepth;  // Limit of recursion
 	glm::vec3 bgcolor;  // Background color
 
 	/* Lists of 3D objects and lights */
 	ObjectList objects;
 	LightList lights;
+	BBox matriz3D[num][num][num];
+	glm::vec3 divisiones;
 
 	/* Viewpoint parameters */
 	glm::vec3 eye,  // Observer 

@@ -137,17 +137,35 @@ glm::vec3 Material::Shade(ShadingInfo &shadInfo)
 	Object *objetoPEsfera;
 	Light *myLightOpt = shadInfo.pWorld->lights.First();
 
-
+	List<glm::vec3> listaIndices;
 	// Recorremos cada rayo de luz
 	while (myLightOpt != NULL) {
 		// Obtenemos la proyeccion del rayo con respecto la normal y la diferencia del vector posicion desde 
 		//esta  el punto observador
 		li = glm::normalize(myLightOpt->position - shadInfo.point);
 		ln = glm::dot(li, shadInfo.normal);
+		
 
 		//Para proyectar los rayos de sombra, se recorren todas las esferas y se sacan las intersecciones del rayo hasta el punto
 		objetoPEsfera = shadInfo.pWorld->objects.First();
 		shadowCoef = glm::vec3(1., 1., 1.);
+		/* AMANATIDEEEEEEEEEEEEEES :::::: Lista de voxels e iterarlo con este bucle */
+		/*Calculo de inicio y fin
+		ssssssssssssssssssssssssssssssssssssssss*/
+		glm::vec3 primero = listaIndices.First();
+		while (primero != NULL) {
+			while () {
+				if (objetoPEsfera->NearestInt(shadInfo.point, li) > TMIN && objetoPEsfera->NearestInt(myLightOpt->position, -li) > TMIN) {
+					shadowCoef = shadowCoef * objetoPEsfera->pMaterial->Kt;
+				}
+			}
+			primero = listaIndices.Next();
+		}
+		
+
+
+
+
 		while (objetoPEsfera != NULL) {
 			//Miramos desde donde nace el rayo (li) y lo que se encuentra en los puntos de detrás (-li) del rayo 
 			if (objetoPEsfera->NearestInt(shadInfo.point,li)>TMIN && objetoPEsfera->NearestInt(myLightOpt->position,-li)>TMIN) {
@@ -242,4 +260,65 @@ glm::vec3 Material::Shade(ShadingInfo &shadInfo)
 	color = color + IaDRT + IaER + IaET + IdR + IdT + IsR + IsT;;
 
 	return color;
+}
+List<glm::vec3> voxel_traversal(glm::vec3 origin, glm::vec3 end) {
+	List<glm::vec3> voxels_path;
+	glm::vec3 voxel_actual(floor(origin[0] / 1),floor(origin[1] / 1), floor(origin[2] / 1));
+	glm::vec3 voxel_final(floor(end[0] / 1), floor(end[1] / 1), floor(end[2] / 1));
+	
+	glm::vec3 rayo = origin - end;
+
+	double stepX = (rayo[0] >= 0) ? 1 : -1; // correct
+	double stepY = (rayo[1] >= 0) ? 1 : -1; // correct
+	double stepZ = (rayo[2] >= 0) ? 1 : -1; // correct
+
+	double next_voxel_boundary_x = (voxel_actual[0] + stepX) * 1; // correct
+	double next_voxel_boundary_y = (voxel_actual[1] + stepY) * 1; // correct
+	double next_voxel_boundary_z = (voxel_actual[2] + stepZ) * 1; // correct
+
+	double tMaxX = (rayo[0] != 0) ? (next_voxel_boundary_x - origin[0]) / rayo[0] : DBL_MAX; //
+	double tMaxY = (rayo[1] != 0) ? (next_voxel_boundary_y - origin[1]) / rayo[1] : DBL_MAX; //
+	double tMaxZ = (rayo[2] != 0) ? (next_voxel_boundary_z - origin[2]) / rayo[2] : DBL_MAX; //
+
+	double tDeltaX = (rayo[0] != 0) ? 1 / rayo[0] * stepX : DBL_MAX;
+	double tDeltaY = (rayo[1] != 0) ? 1 / rayo[1] * stepY : DBL_MAX;
+	double tDeltaZ = (rayo[2] != 0) ? 1 / rayo[2] * stepZ : DBL_MAX;
+
+	glm::vec3 diferencia;
+
+	bool neg_ray = false;
+
+	if (voxel_actual[0] != voxel_final[0] && rayo[0] < 0) { diferencia[0]--; neg_ray = true; }
+	if (voxel_actual[1] != voxel_final[1] && rayo[1] < 0) { diferencia[1]--; neg_ray = true; }
+	if (voxel_actual[2] != voxel_final[2] && rayo[2] < 0) { diferencia[2]--; neg_ray = true; }
+
+	if (neg_ray) {
+		voxel_actual += diferencia;
+		voxels_path.Add(voxel_actual);
+	}
+
+	while (voxel_final != voxel_actual) {
+		if (tMaxX < tMaxY) {
+			if (tMaxX < tMaxZ) {
+				voxel_actual[0] += stepX;
+				tMaxX += tDeltaX;
+			}
+			else {
+				voxel_actual[2] += stepZ;
+				tMaxZ += tDeltaZ;
+			}
+		}
+		else {
+			if (tMaxY < tMaxZ) {
+				voxel_actual[1] += stepY;
+				tMaxY += tDeltaY;
+			}
+			else {
+				voxel_actual[2] += stepZ;
+				tMaxZ += tDeltaZ;
+			}
+		}
+		voxels_path.Add(voxel_actual);
+	}
+	return voxels_path;
 }

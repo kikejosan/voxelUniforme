@@ -34,7 +34,7 @@ public:
 
   /* Implements the global illumination model */
   glm::vec3 Shade(ShadingInfo &shadInfo);
-
+  glm::vec3 voxel_traversal(glm::vec3 origin, glm::vec3 end);
   /* As different objects can point and share the same material, they all must
      call IncRefs when start using it, and DecRefs when no longer need it */
   void IncRefs() { refs++; }

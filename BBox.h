@@ -2,10 +2,9 @@
 
 #define _BBOX_H_
 #include "glm/vec3.hpp" 
+#include "objectlist.h"
 
 class BBox{
-	
-
 public:
 	glm::vec3 id;
 	glm::vec3 A;
@@ -16,9 +15,9 @@ public:
 	glm::vec3 F;
 	glm::vec3 G;
 	glm::vec3 Hmin;
-	ObjectList objects;
 	BBox();
-	BBox(glm::vec3 myMin, glm::vec3 myMax, ObjectList objects);
+	ObjectList objects2;
+	//BBox(glm::vec3 myMin, glm::vec3 myMax, ObjectList objects);
 	BBox(glm::vec3 myMin, glm::vec3 myMax);
 };
 

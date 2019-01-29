@@ -16,8 +16,9 @@
 
 #include "shadinfo.h"
 #include "material.h"
-#include "BBox.h"
+//#include "BBox.h"
 
+class BBox;
 
 /****************/
 /* Object class */
@@ -39,7 +40,9 @@ public:
   virtual void Draw() = 0;
 
   /* Get Bounding Box from the object selected  */
-  virtual BBox GetBox() = 0;
+  virtual BBox GetBox()= 0;
+  virtual glm::vec3 getCenter() = 0;
+  virtual float getRadius() = 0;
 
   Material *pMaterial;
 };
@@ -65,7 +68,7 @@ public:
   virtual float getRadius();
 
 
-private:
+//private:
 
   glm::vec3 center;  // Center coordinates
   float radius;      // Radius

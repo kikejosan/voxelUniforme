@@ -20,6 +20,7 @@
 
 #include "object.h"
 #include "limits.h"
+#include "BBox.h"
 
 
 /* Constructor */
@@ -97,7 +98,7 @@ void Sphere::Draw() {
 	glLoadMatrixf(&viewMat[0][0]);
 }
 
-BBox Sphere::GetBox()
+BBox Sphere::GetBox() 
 {
 	glm::vec3 myMin(center.x - radius,
 		center.y - radius,
@@ -106,8 +107,8 @@ BBox Sphere::GetBox()
 	glm::vec3 myMax(center.x + radius,
 		center.y + radius,
 		center.z + radius);
-	ObjectList objects;
-	return BBox(myMin,myMax,objects);
+	//ObjectList objects;
+	return BBox(myMin, myMax);//,objects);
 }
 
 glm::vec3 Sphere::getCenter()

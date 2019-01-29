@@ -42,6 +42,7 @@
 #include "frame.h"
 #include "raytracer.h"
 #include <math.h>
+#include "BBox.h"
 
 /*******************/
 /* Data structures */
@@ -55,7 +56,7 @@ bool raytracing = false;
 /* Window size */
 int width;   // Width
 int height;  // Height
-const int num = 3;
+
 
 
 /* Array of characters */
@@ -281,17 +282,18 @@ glm::vec3 getCoordVoxel1(BBox escena, glm::vec3 punto) {
 	
 	return indices;
 }
-boolean testVoxelEsfera(Sphere* esfera, BBox caja) {
+boolean testVoxelEsfera(Object* esfera, BBox caja) {
 	float dmin = 0;
 	float dmax = 0;
 	float a = 0;
 	float b = 0;
 	int n = 3;
-	
+	//Sphere esferita = new Sphere(esfera);
 	glm::vec3 center = esfera->getCenter();
 	float radio = esfera->getRadius();
+	fprintf(stdout, "HOLA TESTING");
 	float radioCuadrado = radio * radio;
-
+	
 	for (int i = 0; i < caja.Cmax.length(); i++) {
 		if (center[i] < caja.Hmin[i])
 			dmin += sqrt(center[i] - caja.Hmin[i]);
@@ -299,7 +301,7 @@ boolean testVoxelEsfera(Sphere* esfera, BBox caja) {
 			if (center[i] > caja.Cmax[i])
 				dmin += sqrt(center[i] - caja.Cmax[i]);
 	}
-
+	
 	return (dmin <= radioCuadrado);
 	/*else {
 		for (int i = 0; i < caja.Cmax.length(); i++) {
@@ -331,19 +333,12 @@ RayTracing(void)
 	float divY;
 	float divZ;
 	
-	List<List<List<BBox>>> matrizVoxels;
-	List<List<BBox>> listaFilaVoxels;
-	List<BBox> listaVoxels;
-
-	List<List<List<BBox>>> matrizVoxelsEmpty;
-	List<List<BBox>> listaFilaVoxelsEmpty;
-	List<BBox> listaVoxelsEmpty;
 	BBox matriz3D[num][num][num];
 	int n;
 	
-	Sleep(100000000);
-		/* BOUNDING BOX de TODA LA ESCENA */
-
+	
+	/* BOUNDING BOX de TODA LA ESCENA */
+	
 	while (objeto != NULL) {
 		boundingUnitario = objeto->GetBox();
 		
@@ -355,14 +350,14 @@ RayTracing(void)
 		
 		fprintf(stdout, "ResultanteMAX %f %f %f \n", mainBox.Cmax.x, mainBox.Cmax.y, mainBox.Cmax.z);
 		fprintf(stdout, "ResultanteMIN %f %f %f \n\n", mainBox.Hmin.x, mainBox.Hmin.y, mainBox.Hmin.z);
-		//Sleep(10000);
 		objeto = raytracer.world.objects.Next();
 	}
+
 	//Dividimos el Bounding Box en partes iguales
 	divX = (float)abs(mainBox.Cmax.x-mainBox.Hmin.x) / (float)numDiv;
 	divY = (float)abs(mainBox.Cmax.y - mainBox.Hmin.y) / (float)numDiv;
 	divZ = (float)abs(mainBox.Cmax.z - mainBox.Hmin.z) / (float)numDiv;
-
+	
 	BBox voxel;
 	glm::vec3 origenMin(mainBox.Hmin.x, mainBox.Hmin.y, mainBox.Hmin.z);
 	glm::vec3 origenMax(mainBox.Cmax.x, mainBox.Cmax.y, mainBox.Cmax.z);
@@ -375,62 +370,36 @@ RayTracing(void)
 			for (int z = 0; z < numDiv; z++) {
 				voxel.Hmin.z = voxel.Hmin.z + (divZ * (float)z);
 				voxel.Cmax.z = origenMax.z + (divZ * (float)z);
-				voxel.id = glm::vec3(i,j,z);
 				matriz3D[i][j][z] = voxel;
 				
-				
-				listaVoxels.Add(voxel);
 			}
-			listaFilaVoxels.Add(listaVoxels);
-			listaVoxels = listaVoxelsEmpty;
 		} 
-		matrizVoxels.Add(listaFilaVoxels);
-		listaFilaVoxels = listaFilaVoxelsEmpty;
 	}
-	
 	/* Ubicacion de los objetos en los diferentes voxels */
+	
 	objeto = raytracer.world.objects.First();
 	glm::vec3 coordVoxelMin;
 	glm::vec3 coordVoxelMax;
 	while (objeto != NULL) {
-		
 		boundingUnitario = objeto->GetBox();
-		coordVoxelMin = getCoordVoxel1(mainBox,boundingUnitario.Hmin);
-		coordVoxelMax = getCoordVoxel1(mainBox, boundingUnitario.Cmax);
-		
+		/*coordVoxelMin = getCoordVoxel1(mainBox,boundingUnitario.Hmin);
+		coordVoxelMax = getCoordVoxel1(mainBox, boundingUnitario.Cmax)*/;
+		coordVoxelMin = getCoordVoxel(matriz3D,boundingUnitario.Hmin);
+		coordVoxelMax = getCoordVoxel(matriz3D, boundingUnitario.Cmax);
 		for (int x = coordVoxelMin.x; x <= coordVoxelMax.x; x++) {
 			for (int y = coordVoxelMin.y; y <= coordVoxelMax.y; y++) {
 				for (int z = coordVoxelMin.z; z <= coordVoxelMax.z; z++) {
-					if (testVoxelEsfera((Sphere *)objeto, matriz3D[x][y][z])) {
-						matriz3D[x][y][z].objects.Add(objeto);
+					fprintf(stdout, "ESTOY EN %d %d %d \n",x,y,z);
+					fprintf(stdout, "%f %f %f", coordVoxelMax.x, coordVoxelMax.y, coordVoxelMax.z);
+					if (testVoxelEsfera(objeto, matriz3D[x][y][z])) {
+						matriz3D[x][y][z].objects2.Add(objeto);
 					}
 				}
 			}
 		}
 		objeto = raytracer.world.objects.Next();
 	}
-
-
-
-
-
 	
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 	/* Inicio de la práctica 2 */
   long numObjs = 0, numRays = 0, numTests = 0;
