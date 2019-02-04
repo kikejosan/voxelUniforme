@@ -17,6 +17,10 @@
 #include "lightlist.h"
 #include "world.h"
 #include "limits.h"
+#include <iostream>
+#include <algorithm>
+#include <vector>
+#include "list.h"
 
 
 /* Constructors */
@@ -137,42 +141,51 @@ glm::vec3 Material::Shade(ShadingInfo &shadInfo)
 	Object *objetoPEsfera;
 	Light *myLightOpt = shadInfo.pWorld->lights.First();
 
-	List<glm::vec3> listaIndices;
+	std::vector<glm::vec3> puntosInicioFin;
+	std::vector<glm::vec3> listaIndices;
+	glm::vec3 indiceX;
+	BBox voxel;
+	glm::vec3 inicio;
+	glm::vec3 fin;
 	// Recorremos cada rayo de luz
 	while (myLightOpt != NULL) {
 		// Obtenemos la proyeccion del rayo con respecto la normal y la diferencia del vector posicion desde 
 		//esta  el punto observador
 		li = glm::normalize(myLightOpt->position - shadInfo.point);
 		ln = glm::dot(li, shadInfo.normal);
-		
 
+		
 		//Para proyectar los rayos de sombra, se recorren todas las esferas y se sacan las intersecciones del rayo hasta el punto
-		objetoPEsfera = shadInfo.pWorld->objects.First();
 		shadowCoef = glm::vec3(1., 1., 1.);
-		/* AMANATIDEEEEEEEEEEEEEES :::::: Lista de voxels e iterarlo con este bucle */
-		/*Calculo de inicio y fin
-		ssssssssssssssssssssssssssssssssssssssss*/
-		glm::vec3 primero = listaIndices.First();
-		while (primero != NULL) {
-			while () {
+
+		/* AMANATIDES :::::: Lista de voxels e iterarlo con este bucle */
+		/* Obtenemos el punto de inicio del rayo en la escena y el fin, comparando las distancias t con respecto los 6 planos del boundingbox de la escena */
+		puntosInicioFin = sacarInicioFin(li, myLightOpt->position,shadInfo.pWorld->matriz3D[0][0][0].Hmin, shadInfo.pWorld->matriz3D[num-1][num-1][num-1].Cmax);
+		
+		/* Obtenemos la lista de indices de los voxeles por donde pasa el rayo */
+		inicio = puntosInicioFin[0];
+		fin = puntosInicioFin[1];
+		fprintf(stdout, "INICIO FIN %f  %f \n", inicio.x, fin.x);
+		listaIndices = this->getListaIndices(inicio,fin);
+		
+		/* Iteramos sobre la lista de indices para comprobar los puntos t minimos por donde pasa el rayo interseccion */
+		
+		for (int i = 0; i < listaIndices.size(); i++) {
+			/* Eligimos el voxel correspondiente */
+			voxel = shadInfo.pWorld->matriz3D[(int)listaIndices[i].x][(int)listaIndices[i].y][(int)listaIndices[i].z];
+			/* Iteramos sobre los objetos de ese voxel */
+			objetoPEsfera = voxel.objects2.First();
+			while (objetoPEsfera != NULL) {
+				//Miramos desde donde nace el rayo (li) y lo que se encuentra en los puntos de detrás (-li) del rayo 
 				if (objetoPEsfera->NearestInt(shadInfo.point, li) > TMIN && objetoPEsfera->NearestInt(myLightOpt->position, -li) > TMIN) {
 					shadowCoef = shadowCoef * objetoPEsfera->pMaterial->Kt;
+					i = INT_MAX;
 				}
+				objetoPEsfera = voxel.objects2.Next();
 			}
-			primero = listaIndices.Next();
 		}
 		
-
-
-
-
-		while (objetoPEsfera != NULL) {
-			//Miramos desde donde nace el rayo (li) y lo que se encuentra en los puntos de detrás (-li) del rayo 
-			if (objetoPEsfera->NearestInt(shadInfo.point,li)>TMIN && objetoPEsfera->NearestInt(myLightOpt->position,-li)>TMIN) {
-				shadowCoef = shadowCoef * objetoPEsfera->pMaterial->Kt;
-			}
-			objetoPEsfera = shadInfo.pWorld->objects.Next();
-		}
+		
 		/* Multiplico el coeficiente de sombra por las intensidades de la luz*/
 		intensityId = myLightOpt->Id * shadowCoef;
 		intensityIs = myLightOpt->Is * shadowCoef;
@@ -261,24 +274,112 @@ glm::vec3 Material::Shade(ShadingInfo &shadInfo)
 
 	return color;
 }
-List<glm::vec3> voxel_traversal(glm::vec3 origin, glm::vec3 end) {
-	List<glm::vec3> voxels_path;
-	glm::vec3 voxel_actual(floor(origin[0] / 1),floor(origin[1] / 1), floor(origin[2] / 1));
-	glm::vec3 voxel_final(floor(end[0] / 1), floor(end[1] / 1), floor(end[2] / 1));
+
+std::vector<glm::vec3> Material::sacarInicioFin(glm::vec3 direccion, glm::vec3 posicion, glm::vec3 minimoMundo, glm::vec3 maximoMundo) {
+	glm::vec3 rayPos = posicion;
+	glm::vec3 rayDir = direccion;
 	
-	glm::vec3 rayo = origin - end;
+	glm::vec3 minimo = minimoMundo;
+	glm::vec3 maximo = maximoMundo;
 
-	double stepX = (rayo[0] >= 0) ? 1 : -1; // correct
-	double stepY = (rayo[1] >= 0) ? 1 : -1; // correct
-	double stepZ = (rayo[2] >= 0) ? 1 : -1; // correct
+	//Obtenemos 3 puntos de cada plano para sacar las ecuaciones del plano y las normales
+	glm::vec3 normales[6];
 
-	double next_voxel_boundary_x = (voxel_actual[0] + stepX) * 1; // correct
-	double next_voxel_boundary_y = (voxel_actual[1] + stepY) * 1; // correct
-	double next_voxel_boundary_z = (voxel_actual[2] + stepZ) * 1; // correct
+	glm::vec3 puntos[18];
+	glm::vec3 punto1min = glm::vec3(minimo.x, minimo.y, maximo.z);
+	glm::vec3 punto1max = maximo;
+	glm::vec3 punto1otro = glm::vec3(minimo.x, maximo.y, maximo.z);
+	
+	
+	glm::vec3 punto2min = glm::vec3(maximo.x, minimo.y, minimo.z);
+	glm::vec3 punto2max = maximo;
+	glm::vec3 punto2otro = glm::vec3(maximo.x, minimo.y, maximo.z);
+	
+	
+	glm::vec3 punto3min = glm::vec3(minimo.x, maximo.y, minimo.z);
+	glm::vec3 punto3max = maximo;
+	glm::vec3 punto3otro = glm::vec3(maximo.x, maximo.y, minimo.z);
+	
+	
+	glm::vec3 punto4min = minimo;
+	glm::vec3 punto4max(maximo.x, minimo.y, maximo.z);
+	glm::vec3 punto4otro(minimo.x, maximo.y, maximo.z);
+	
+	
+	glm::vec3 punto5min = minimo;
+	glm::vec3 punto5max(maximo.x, maximo.y, minimo.z);
+	glm::vec3 punto5otro(minimo.x,maximo.y,minimo.z);
+	
+	glm::vec3 punto6min = minimo;
+	glm::vec3 punto6max(minimo.x, maximo.y, maximo.z);
+	glm::vec3 punto6otro(minimo.x,minimo.y,maximo.z);
+	
+	puntos[0] = punto1min;
+	puntos[1] = punto2min;
+	puntos[2] = punto3min;
+	puntos[3] = punto4min;
+	puntos[4] = punto5min;
+	puntos[5] = punto6min;
 
-	double tMaxX = (rayo[0] != 0) ? (next_voxel_boundary_x - origin[0]) / rayo[0] : DBL_MAX; //
-	double tMaxY = (rayo[1] != 0) ? (next_voxel_boundary_y - origin[1]) / rayo[1] : DBL_MAX; //
-	double tMaxZ = (rayo[2] != 0) ? (next_voxel_boundary_z - origin[2]) / rayo[2] : DBL_MAX; //
+	normales[0] = glm::cross(punto1otro - punto1min, punto1max - punto1min);
+	normales[1] = glm::cross(punto2otro - punto2min, punto2max - punto2min);
+	normales[2] = glm::cross(punto3otro - punto3min, punto3max - punto3min);
+	normales[3] = glm::cross(punto4otro-punto4min, punto4max-punto4min);
+	normales[4] = glm::cross(punto5otro - punto5min, punto5max - punto5min);
+	normales[5] = glm::cross(punto6otro - punto6min, punto6max - punto6min);
+
+	//Con las normales y los puntos obtenemos las ts a través de las ecuaciones parametricas de la recta y la ecuacion generald el planoç
+	// ¡Ojo! Las ecuaciones de los planos son de planos infinitos, luego controlaremos las cotas con un "if"
+	std::vector<glm::vec3> lista;
+
+	std::vector<float> ts;
+	float numerador = 0.0;
+	float denominador = 0.0;
+	glm::vec3 puntico;
+	double t;
+	for (int i = 0; i < normales->length();i++) {
+		numerador = ((normales[i].x*(puntos[i].x-rayPos.x))+
+			(normales[i].y*(puntos[i].y*rayPos.y)) +
+			(normales[i].z*(puntos[i].z*rayPos.z))
+			);
+		denominador = (normales[i].x*rayDir.x + normales[i].y*rayDir.y + normales[i].z*rayDir.z);
+		fprintf(stdout, "NUMERADOR y DENOMINADOR %f  %f \n",numerador,denominador);
+		t = (double)numerador / (double)denominador;
+		fprintf(stdout, "t %f \n", t);
+		puntico.x = rayPos.x + t * rayDir.x;
+		puntico.y = rayPos.y + t * rayDir.y;
+		puntico.z = rayPos.z + t * rayDir.z;
+		//lista.push_back(puntico);
+		// Comprobamos que el punto está en uno de los planos ACOTADOS del mainbox
+		if ((puntico.x <= maximo.x && puntico.x >= minimo.x) && (puntico.z == minimo.z || puntico.z == maximo.z) &&
+			((puntico.y <= maximo.y && puntico.z >= minimo.z) && (puntico.x == minimo.x || puntico.x == maximo.x)) &&
+			(puntico.x <= maximo.x && puntico.z >= minimo.z) && (puntico.y == minimo.y || puntico.y == maximo.y)
+			){
+		
+			lista.push_back(puntico);
+		}
+	}
+	
+	return lista;
+}
+std::vector<glm::vec3> Material::getListaIndices(glm::vec3 origen, glm::vec3 final) {
+	std::vector<glm::vec3> indices;
+	glm::vec3 voxel_actual(floor(origen[0] / 1),floor(origen[1] / 1), floor(origen[2] / 1));
+	glm::vec3 voxel_final(floor(final[0] / 1), floor(final[1] / 1), floor(final[2] / 1));
+	
+	glm::vec3 rayo = origen - final;
+	
+	double stepX = (rayo[0] >= 0) ? 1 : -1; 
+	double stepY = (rayo[1] >= 0) ? 1 : -1; 
+	double stepZ = (rayo[2] >= 0) ? 1 : -1; 
+
+	double nextVoxelVecino_x = (voxel_actual[0] + stepX) * 1; 
+	double nextVoxelVecino_y = (voxel_actual[1] + stepY) * 1;
+	double nextVoxelVecino_z = (voxel_actual[2] + stepZ) * 1;
+
+	double tMaxX = (rayo[0] != 0) ? (nextVoxelVecino_x - origen[0]) / rayo[0] : DBL_MAX;
+	double tMaxY = (rayo[1] != 0) ? (nextVoxelVecino_y - origen[1]) / rayo[1] : DBL_MAX;
+	double tMaxZ = (rayo[2] != 0) ? (nextVoxelVecino_z - origen[2]) / rayo[2] : DBL_MAX;
 
 	double tDeltaX = (rayo[0] != 0) ? 1 / rayo[0] * stepX : DBL_MAX;
 	double tDeltaY = (rayo[1] != 0) ? 1 / rayo[1] * stepY : DBL_MAX;
@@ -294,7 +395,7 @@ List<glm::vec3> voxel_traversal(glm::vec3 origin, glm::vec3 end) {
 
 	if (neg_ray) {
 		voxel_actual += diferencia;
-		voxels_path.Add(voxel_actual);
+		indices.push_back(voxel_actual);
 	}
 
 	while (voxel_final != voxel_actual) {
@@ -318,7 +419,9 @@ List<glm::vec3> voxel_traversal(glm::vec3 origin, glm::vec3 end) {
 				tMaxZ += tDeltaZ;
 			}
 		}
-		voxels_path.Add(voxel_actual);
+		indices.push_back(voxel_actual);
 	}
-	return voxels_path;
+	return indices;
 }
+
+

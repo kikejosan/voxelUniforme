@@ -13,14 +13,17 @@
 #define _MATERIAL_H_
 
 #include "glm/vec3.hpp" // glm::vec3
-
+#include <vector>
 #include "shadinfo.h"
+
+
+
 
 
 /******************/
 /* Material class */
 /******************/
-
+class BBox;
 class Material {
 
 public:
@@ -34,7 +37,8 @@ public:
 
   /* Implements the global illumination model */
   glm::vec3 Shade(ShadingInfo &shadInfo);
-  glm::vec3 voxel_traversal(glm::vec3 origin, glm::vec3 end);
+  std::vector<glm::vec3> getListaIndices(glm::vec3 origen, glm::vec3 final);
+  std::vector<glm::vec3> sacarInicioFin(glm::vec3 direccion, glm::vec3 posicion, glm::vec3 minimoMundo, glm::vec3 maximoMundo);
   /* As different objects can point and share the same material, they all must
      call IncRefs when start using it, and DecRefs when no longer need it */
   void IncRefs() { refs++; }

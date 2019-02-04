@@ -271,16 +271,11 @@ glm::vec3 getCoordVoxel(BBox escena[num][num][num], glm::vec3 punto) {
 }
 /* Encuentro el voxel que contiene un cierto punto sin recorrer todos */
 glm::vec3 getCoordVoxel1(BBox escena, glm::vec3 punto) {
-	float numerador;
-	float denominador;
-	glm::vec3 indices;
-	for (int i = 0; i < punto.length(); i++) {
-		numerador = punto[i] - escena.Hmin[i];
-		denominador = (escena.Cmax.x - escena.Hmin.x) / num; 
-		indices[i] = floor(numerador / denominador);
-	}
-	
-	return indices;
+	float x = (abs(punto.x - escena.Hmin.x) / (abs(escena.Cmax.x - escena.Hmin.x) / num));
+	float y = (abs(punto.x - escena.Hmin.x) / (abs(escena.Cmax.x - escena.Hmin.x) / num));
+	float z = (abs(punto.x - escena.Hmin.x) / (abs(escena.Cmax.x - escena.Hmin.x) / num));
+
+	return glm::vec3(x,y,z);
 }
 boolean testVoxelEsfera(Object* esfera, BBox caja) {
 	float dmin = 0;
@@ -321,7 +316,7 @@ boolean testVoxelEsfera(Object* esfera, BBox caja) {
 void
 RayTracing(void)
 {
-	int numDiv = 3;
+	
 	BBox boundingUnitario;
 	BBox mainBox;
 	
@@ -353,23 +348,26 @@ RayTracing(void)
 		objeto = raytracer.world.objects.Next();
 	}
 
-	//Dividimos el Bounding Box en partes iguales
-	divX = (float)abs(mainBox.Cmax.x-mainBox.Hmin.x) / (float)numDiv;
-	divY = (float)abs(mainBox.Cmax.y - mainBox.Hmin.y) / (float)numDiv;
-	divZ = (float)abs(mainBox.Cmax.z - mainBox.Hmin.z) / (float)numDiv;
+	//Dividimos el Bounding Box en partes iguales según lo impuesto por num
+	divX = (float)abs(mainBox.Cmax.x-mainBox.Hmin.x) / (float)num;
+	divY = (float)abs(mainBox.Cmax.y - mainBox.Hmin.y) / (float)num;
+	divZ = (float)abs(mainBox.Cmax.z - mainBox.Hmin.z) / (float)num;
 	
+	/*Repartimos los puntos de los minimos y los maximos de cada voxel de la escena
+	generando la matriz de voxels */
 	BBox voxel;
 	glm::vec3 origenMin(mainBox.Hmin.x, mainBox.Hmin.y, mainBox.Hmin.z);
 	glm::vec3 origenMax(mainBox.Cmax.x, mainBox.Cmax.y, mainBox.Cmax.z);
-	for (int i = 0; i < numDiv; i++) {
+	for (int i = 0; i < num; i++) {
 		voxel.Hmin.x = origenMin.x + (divX * (float)i);
 		voxel.Cmax.x = origenMax.x + (divX * (float)i);
-		for (int j = 0; j < numDiv ; j++) {
+		for (int j = 0; j < num; j++) {
 			voxel.Hmin.y = voxel.Hmin.y + (divY * (float)j);
 			voxel.Cmax.y = origenMax.y + (divY * (float)j);
-			for (int z = 0; z < numDiv; z++) {
+			for (int z = 0; z < num; z++) {
 				voxel.Hmin.z = voxel.Hmin.z + (divZ * (float)z);
 				voxel.Cmax.z = origenMax.z + (divZ * (float)z);
+				raytracer.world.matriz3D[i][j][z] = voxel;
 				matriz3D[i][j][z] = voxel;
 				
 			}
@@ -382,8 +380,9 @@ RayTracing(void)
 	glm::vec3 coordVoxelMax;
 	while (objeto != NULL) {
 		boundingUnitario = objeto->GetBox();
-		/*coordVoxelMin = getCoordVoxel1(mainBox,boundingUnitario.Hmin);
-		coordVoxelMax = getCoordVoxel1(mainBox, boundingUnitario.Cmax)*/;
+		//Obtenemos las coordenadas de la matriz de voxels donde se ubican el minimo y el maximo
+		//coordVoxelMin = getCoordVoxel1(mainBox,boundingUnitario.Hmin);
+		//coordVoxelMax = getCoordVoxel1(mainBox, boundingUnitario.Cmax);
 		coordVoxelMin = getCoordVoxel(matriz3D,boundingUnitario.Hmin);
 		coordVoxelMax = getCoordVoxel(matriz3D, boundingUnitario.Cmax);
 		for (int x = coordVoxelMin.x; x <= coordVoxelMax.x; x++) {
@@ -391,14 +390,16 @@ RayTracing(void)
 				for (int z = coordVoxelMin.z; z <= coordVoxelMax.z; z++) {
 					fprintf(stdout, "ESTOY EN %d %d %d \n",x,y,z);
 					fprintf(stdout, "%f %f %f", coordVoxelMax.x, coordVoxelMax.y, coordVoxelMax.z);
-					if (testVoxelEsfera(objeto, matriz3D[x][y][z])) {
-						matriz3D[x][y][z].objects2.Add(objeto);
+					//Vemos si intersecan los voxeles y las esferas
+					if (testVoxelEsfera(objeto, raytracer.world.matriz3D[x][y][z])) {
+						raytracer.world.matriz3D[x][y][z].objects2.Add(objeto);
 					}
 				}
 			}
 		}
 		objeto = raytracer.world.objects.Next();
 	}
+	
 	
 
 	/* Inicio de la práctica 2 */
